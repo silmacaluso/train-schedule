@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Treinschema</title>
+
+<script>
+/* ================================================================
+   INSTELLINGEN — pas hier je stations en tijdvensters aan.
+   Dit is het enige stuk dat je ooit moet wijzigen.
+   Formaat voor start/end: "UU:MM" (24-uursnotatie).
+   ================================================================ */
+const CONFIG = {
+  morning: {
+    from:  'Mechelen',   // vertrekstation 's ochtends
+    to:    'Leuven',     // aankomststation 's ochtends
+    start: '07:20',      // begin van het tijdvenster
+    end:   '09:00'       // einde van het tijdvenster
+  },
+  afternoon: {
+    from:  'Leuven',     // vertrekstation 's namiddags
+    to:    'Mechelen',   // aankomststation 's namiddags
+    start: '15:00',      // begin van het tijdvenster
+    end:   '17:30'       // einde van het tijdvenster
+  }
+};
+/* ================================================================
+   Einde instellingen. Hieronder staat enkel code — niet nodig
+   om iets aan te passen voorbij dit punt.
+   ================================================================ */
+</script>
+
+<style>
+  :root{
+    --board-bg:#0c0e0a;
+    --board-bg-2:#14170f;
+    --amber:#ffb300;
+    --amber-dim:#8a5c00;
+    --amber-glow: rgba(255,179,0,0.35);
+    --green:#5ee6a0;
+    --red:#ff5d5d;
+    --line:#2a2e22;
+    --grey:#7c8272;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;
+    padding:0;
+    background: radial-gradient(ellipse at top, #1a1d14 0%, #080906 70%);
+    min-height:100vh;
+    font-family: 'Courier New', 'Consolas', monospace;
+    color: var(--amber);
+  }
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 18px 14px 40px;
+  }
+  @media (min-width: 720px){
+    .wrap{ max-width: 980px; }
+  }
+  .header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    padding: 6px 4px 14px;
+    border-bottom: 2px solid var(--line);
+    margin-bottom: 14px;
+  }
+  .header h1{
+    font-size: 15px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin:0;
+    color: var(--grey);
+    font-weight: 600;
+  }
+  .clock{
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--amber);
+    text-shadow: 0 0 8px var(--amber-glow);
+  }
+  .toggle{
+    display:flex;
+    gap:8px;
+    margin-bottom: 18px;
+  }
+  .toggle button{
+    flex:1;
+    background: var(--board-bg-2);
+    border: 1px solid var(--line);
+    color: var(--grey);
+    padding: 10px 8px;
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor:pointer;
+    border-radius: 3px;
+    transition: all .15s ease;
+  }
+  .toggle button.active{
+    color: var(--board-bg);
+    background: var(--amber);
+    box-shadow: 0 0 16px var(--amber-glow);
+    border-color: var(--amber);
+  }
+  .route-label{
+    text-align:center;
+    font-size: 12px;
+    color: var(--grey);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .board{
+    background: var(--board-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow:hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6), inset 0 0 60px rgba(255,179,0,0.02);
+  }
+  #rows{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+  #rows .row{
+    border-right: 1px solid var(--line);
+  }
+  #rows .row:nth-child(3n){
+    border-right: none;
+  }
+  @media (min-width: 720px){
+    #rows{
+      grid-template-columns: repeat(6, 1fr);
+    }
+    #rows .row:nth-child(3n){
+      border-right: 1px solid var(--line);
+    }
+    #rows .row:nth-child(6n){
+      border-right: none;
+    }
+  }
+  .row{
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    justify-content:center;
+    gap: 5px;
+    padding: 16px 6px;
+    border-bottom: 1px solid var(--line);
+    text-align:center;
+  }
+  .row.next{
+    background: radial-gradient(ellipse at center, rgba(255,179,0,0.10), transparent 70%);
+  }
+  .row .time{
+    font-size: 21px;
+    font-weight:700;
+  }
+  .row .via{
+    color: var(--grey);
+    font-size: 11px;
+    max-width: 100%;
+    overflow:hidden;
+    text-overflow: ellipsis;
+    white-space:nowrap;
+  }
+  .row .meta{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .row .plat{
+    color: var(--amber);
+  }
+  .row .plat::before{
+    content: "Sp. ";
+    color: var(--grey);
+  }
+  .row .delay{
+    font-size: 11px;
+  }
+  .delay.ontime{ color: var(--green); }
+  .delay.late{ color: var(--red); }
+  .empty, .error{
+    padding: 30px 14px;
+    text-align:center;
+    color: var(--grey);
+    font-size: 13px;
+    line-height:1.6;
+  }
+  .error{ color: var(--red); }
+  .footer{
+    margin-top: 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size: 10px;
+    color: var(--grey);
+    letter-spacing: 1px;
+    padding: 0 4px;
+  }
+  .refresh-btn{
+    background:none;
+    border: 1px solid var(--line);
+    color: var(--grey);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor:pointer;
+    text-transform: uppercase;
+  }
+  .refresh-btn:hover{ color: var(--amber); border-color: var(--amber-dim); }
+  .blink{ animation: blink 1.4s infinite; }
+  @keyframes blink{ 50%{ opacity:0.35; } }
+  .flap{
+    display:inline-block;
+    animation: flapin .5s ease;
+  }
+  @keyframes flapin{
+    0%{ opacity:0; transform: translateY(-4px); }
+    100%{ opacity:1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1 id="page-title">—</h1>
+    <div class="clock" id="clock">--:--</div>
+  </div>
+
+  <div class="toggle">
+    <button id="btn-morning" onclick="setMode('morning')"></button>
+    <button id="btn-afternoon" onclick="setMode('afternoon')"></button>
+  </div>
+
+  <div class="route-label" id="route-label"></div>
+
+  <div class="board">
+    <div id="rows">
+      <div class="empty blink">Treinen laden…</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span id="last-updated">—</span>
+    <button class="refresh-btn" onclick="load()">↻ Ververs</button>
+  </div>
+</div>
+
+<script>
+function currentDefaultMode(){
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : 'afternoon';
+}
+
+let mode = currentDefaultMode();
+let timer = null;
+
+function initLabels(){
+  document.getElementById('page-title').textContent = `${CONFIG.morning.from} ⇄ ${CONFIG.morning.to}`;
+  document.getElementById('btn-morning').textContent = `Ochtend · ${CONFIG.morning.from} → ${CONFIG.morning.to}`;
+  document.getElementById('btn-afternoon').textContent = `Namiddag · ${CONFIG.afternoon.from} → ${CONFIG.afternoon.to}`;
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById('btn-morning').classList.toggle('active', m==='morning');
+  document.getElementById('btn-afternoon').classList.toggle('active', m==='afternoon');
+  const c = CONFIG[m];
+  document.getElementById('route-label').textContent = `${c.from} → ${c.to}  ·  ${c.start}–${c.end}`;
+  load();
+}
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function updateClock(){
+  const d = new Date();
+  document.getElementById('clock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function timeStrToMinutes(hhmm){
+  const [h,m] = hhmm.split(':').map(Number);
+  return h*60+m;
+}
+
+function fmtTime(unixSeconds){
+  const d = new Date(parseInt(unixSeconds,10)*1000);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function minutesToTimeStr(mins){
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${pad(h)}${pad(m)}`;
+}
+
+async function fetchBatch(s, date, time){
+  const url = `https://api.irail.be/connections/?from=${encodeURIComponent(s.from)}&to=${encodeURIComponent(s.to)}&date=${date}&time=${time}&timesel=departure&results=10&format=json&lang=en`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  return data.connection || [];
+}
+
+async function load(){
+  const rowsEl = document.getElementById('rows');
+  rowsEl.innerHTML = '<div class="empty blink">Treinen laden…</div>';
+
+  const c = CONFIG[mode];
+  const s = { from: c.from, to: c.to };
+  const w = { start: c.start, end: c.end };
+  const now = new Date();
+  const dd = pad(now.getDate()), mm = pad(now.getMonth()+1), yy = now.getFullYear().toString().slice(-2);
+  const date = `${dd}${mm}${yy}`;
+  const startMin = timeStrToMinutes(w.start);
+  const endMin = timeStrToMinutes(w.end);
+
+  try{
+    // keep fetching batches, advancing past the last departure each time,
+    // until we've covered the whole window (the API returns a limited
+    // number of connections per request, so one call often isn't enough)
+    const seen = new Map();
+    let cursorMin = startMin;
+    let guard = 0;
+    while(cursorMin <= endMin && guard < 8){
+      guard++;
+      const batch = await fetchBatch(s, date, minutesToTimeStr(cursorMin));
+      if(batch.length === 0) break;
+
+      let lastMin = cursorMin;
+      for(const c of batch){
+        const t = new Date(parseInt(c.departure.time,10)*1000);
+        const mins = t.getHours()*60 + t.getMinutes();
+        if(mins >= startMin && mins <= endMin){
+          const key = c.departure.departureConnection || (c.departure.time + '-' + c.departure.vehicle);
+          seen.set(key, c);
+        }
+        if(mins > lastMin) lastMin = mins;
+      }
+      if(lastMin <= cursorMin) break; // no progress, avoid infinite loop
+      cursorMin = lastMin + 1;
+    }
+
+    const conns = Array.from(seen.values()).sort((a,b) => parseInt(a.departure.time,10) - parseInt(b.departure.time,10));
+
+    if(conns.length === 0){
+      rowsEl.innerHTML = `<div class="empty">Geen treinen gevonden tussen ${w.start} en ${w.end}.<br>Probeer te verversen of controleer belgiantrain.be.</div>`;
+    } else {
+      renderRows(conns);
+    }
+
+    document.getElementById('last-updated').textContent = `bijgewerkt ${pad(new Date().getHours())}:${pad(new Date().getMinutes())}:${pad(new Date().getSeconds())}`;
+  } catch(err){
+    rowsEl.innerHTML = `<div class="error">Kan geen verbinding maken met de iRail-data.<br>${err.message}<br><br>Controleer je internetverbinding of probeer later opnieuw.</div>`;
+  }
+}
+
+function renderRow(c, isNext){
+  const dep = c.departure;
+  const delaySec = parseInt(dep.delay || '0', 10);
+  const platform = dep.platform || '?';
+  const vehicle = (dep.vehicleinfo && dep.vehicleinfo.shortname) || (c.vehicle || '').split('.').pop() || '';
+  const delayLabel = delaySec > 0
+    ? `<span class="delay late">+${Math.round(delaySec/60)}′</span>`
+    : `<span class="delay ontime">op tijd</span>`;
+  const canceled = dep.canceled === '1';
+  return `<div class="row ${isNext ? 'next' : ''} flap">
+    <div class="time">${fmtTime(dep.time)}</div>
+    <div class="via">${vehicle}</div>
+    <div class="meta">
+      <span class="plat">${platform}</span>
+      ${canceled ? '<span class="delay late">geschrapt</span>' : delayLabel}
+    </div>
+  </div>`;
+}
+
+function renderRows(conns){
+  const rowsEl = document.getElementById('rows');
+  const nowMs = Date.now();
+  let nextMarked = false;
+
+  rowsEl.innerHTML = conns.map(c => {
+    const isNext = !nextMarked && new Date(parseInt(c.departure.time,10)*1000).getTime() > nowMs;
+    if(isNext) nextMarked = true;
+    return renderRow(c, isNext);
+  }).join('');
+}
+
+initLabels();
+setMode(mode);
+if(timer) clearInterval(timer);
+timer = setInterval(load, 60000);
+</script>
+</body>
+</html>
