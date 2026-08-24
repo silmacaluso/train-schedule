@@ -56,7 +56,38 @@ file locally, then on the repo page click into `index.html` → the pencil
 (✎) **Edit** icon → paste your changes → **Commit changes**. The live page
 updates automatically within a minute or two, no re-publishing step needed.
 
-## Editing your stations and time windows
+## Files in this repo
+
+| File | Purpose |
+|---|---|
+| `index.html` | The app itself. Must keep this exact name for GitHub Pages. |
+| `icon.svg` | Source icon (train pictogram, matches the app's amber/black theme). Used as the browser tab favicon. |
+| `icon-192.png`, `icon-512.png` | Rasterized versions for the home-screen icon (referenced by `manifest.json`). |
+| `apple-touch-icon.png` | 180×180 icon iOS uses for "Add to Home Screen". |
+| `favicon-32.png` | Fallback favicon for browsers that don't support SVG favicons. |
+| `manifest.json` | Web app manifest — tells Android/Chrome what icon and name to use when added to the home screen. |
+
+Upload **all of these files** to the repo (same folder, no subfolders) — `index.html` references them by their plain filename.
+
+## Swapping in a different icon later
+
+If you'd rather use the Wikimedia train icon (`BSicon_BAHN.svg`, CC0 / public
+domain — free to use without restriction) instead of the custom one:
+
+1. Download it from
+   [commons.wikimedia.org/wiki/File:BSicon_BAHN.svg](https://commons.wikimedia.org/wiki/File:BSicon_BAHN.svg)
+   (click "Original file" to get the raw `.svg`).
+2. On your repo page, upload it and rename it to `icon.svg`, overwriting the
+   existing one (GitHub will ask to confirm the replacement).
+3. You'll also want new PNG versions for the home-screen icon, since phones
+   need raster sizes, not just the SVG. Easiest way: open the SVG in any
+   image editor (or an online SVG-to-PNG converter) and export it at
+   512×512, 192×192, and 180×180, saving over `icon-512.png`, `icon-192.png`,
+   and `apple-touch-icon.png` respectively.
+4. Commit — the live site picks it up automatically, no other changes
+   needed.
+
+
 
 Open `index.html` in any text editor and look at the very top of the file —
 you'll see a block that starts with `const CONFIG = {`. It looks like this:
