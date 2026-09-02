@@ -13,14 +13,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Trein">
 
-<link rel="icon" type="image/svg+xml" href="train-icon.svg">
-<link rel="apple-touch-icon" href="train-icon.svg">
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0c0e0a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Trein">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-
 <script>
 /* ================================================================
    INSTELLINGEN — pas hier je stations en tijdvensters aan.
@@ -171,6 +163,15 @@ const CONFIG = {
   }
   .row.next{
     background: radial-gradient(ellipse at center, rgba(255,179,0,0.10), transparent 70%);
+  }
+  .row.past{
+    opacity: 0.35;
+  }
+  .row.past .time,
+  .row.past .via,
+  .row.past .meta{
+    text-decoration: line-through;
+    text-decoration-color: var(--grey);
   }
   .row .time{
     font-size: 21px;
@@ -380,7 +381,7 @@ async function load(){
   }
 }
 
-function renderRow(c, isNext){
+function renderRow(c, isNext, isPast){
   const dep = c.departure;
   const delaySec = parseInt(dep.delay || '0', 10);
   const platform = dep.platform || '?';
@@ -389,7 +390,7 @@ function renderRow(c, isNext){
     ? `<span class="delay late">+${Math.round(delaySec/60)}′</span>`
     : `<span class="delay ontime">op tijd</span>`;
   const canceled = dep.canceled === '1';
-  return `<div class="row ${isNext ? 'next' : ''} flap">
+  return `<div class="row ${isNext ? 'next' : ''} ${isPast ? 'past' : ''} flap">
     <div class="time">${fmtTime(dep.time)}</div>
     <div class="via">${vehicle}</div>
     <div class="meta">
@@ -405,9 +406,11 @@ function renderRows(conns){
   let nextMarked = false;
 
   rowsEl.innerHTML = conns.map(c => {
-    const isNext = !nextMarked && new Date(parseInt(c.departure.time,10)*1000).getTime() > nowMs;
+    const depMs = new Date(parseInt(c.departure.time,10)*1000).getTime();
+    const isPast = depMs <= nowMs;
+    const isNext = !nextMarked && !isPast;
     if(isNext) nextMarked = true;
-    return renderRow(c, isNext);
+    return renderRow(c, isNext, isPast);
   }).join('');
 }
 
